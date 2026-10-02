@@ -16,12 +16,13 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
 
-      - name: Download SDK (With Size Validation)
+      - name: Download SDK (Correct URL & Size Validation)
         id: sdk
         run: |
+          # 修正了官方 SDK 的正确架构名与 GCC 版本号路径
           URLS=(
-            "https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
-            "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+            "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
+            "https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86-64_gcc-12.3.0_musl.Linux-x86_64.tar.xz"
           )
           
           SUCCESS=0
@@ -29,7 +30,7 @@ jobs:
             echo "Trying to download from: $url"
             rm -f sdk.tar.xz
             if curl -L --retry 5 --retry-delay 5 --connect-timeout 30 -o sdk.tar.xz "$url"; then
-              # 校验文件大小是否大于 50MB，自动过滤掉几字节的错误响应
+              # 校验文件大小是否大于 50MB
               FILE_SIZE=$(stat -c%s sdk.tar.xz 2>/dev/null || stat -f%z sdk.tar.xz 2>/dev/null || echo 0)
               if [ "$FILE_SIZE" -gt 50000000 ]; then
                 echo "Download successful! File size: $FILE_SIZE bytes"
