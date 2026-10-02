@@ -1,0 +1,29 @@
+name: Build luci-app-daede IPK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup OpenWrt SDK
+        uses: immortalwrt/actions-sdk@v1
+        with:
+          target: x86/64
+          version: 24.10
+          
+      - name: Build IPK
+        run: |
+          cp -r . package/luci-app-daede
+          make package/luci-app-daede/compile V=s
+          
+      - name: Upload IPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-daede-ipk
+          path: bin/packages/**/luci-app-daede*.ipk
