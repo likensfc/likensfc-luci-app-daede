@@ -16,33 +16,21 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
 
-      - name: Download SDK (try multiple versions)
+      - name: Download ImmortalWrt SDK
         id: sdk
         run: |
-          # 尝试多个版本号格式
-          VERSIONS=("24.10" "24.10.0" "24.10.1" "24.10.2")
-          MIRRORS=(
-            "https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases"
-            "https://mirrors.pku.edu.cn/openwrt/releases"
-            "https://downloads.openwrt.org/releases"
-          )
+          # ImmortalWrt 24.10 基于 OpenWrt 23.05，用 23.05 SDK
+          SDK_URL="https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          
+          echo "Downloading: $SDK_URL"
+          wget -q --show-progress --timeout=120 --tries=3 "$SDK_URL" -O sdk.tar.xz || \
+          wget -q --timeout=120 --tries=3 "https://mirrors.pku.edu.cn/openwrt/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz || \
+          wget -q --timeout=120 --tries=3 "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
 
-          for ver in "${VERSIONS[@]}"; do
-            for mirror in "${MIRRORS[@]}"; do
-              URL="${mirror}/${ver}/targets/x86/64/openwrt-sdk-${ver}-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
-              echo "Trying: $URL"
-              if wget -q --timeout=60 --tries=2 "$URL" -O sdk.tar.xz && [ -s sdk.tar.xz ]; then
-                echo "Success: $URL"
-                tar -xf sdk.tar.xz
-                SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
-                echo "SDK_DIR=$SDK_DIR" >> $GITHUB_OUTPUT
-                exit 0
-              fi
-            done
-          done
-
-          echo "All versions/mirrors failed"
-          exit 1
+          [ -s sdk.tar.xz ] || { echo "All downloads failed"; exit 1; }
+          tar -xf sdk.tar.xz
+          SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
+          echo "SDK_DIR=$SDK_DIR" >> $GITHUB_OUTPUT
 
       - name: Build IPK
         run: |
