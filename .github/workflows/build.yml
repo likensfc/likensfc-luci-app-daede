@@ -16,10 +16,9 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
 
-      - name: Download SDK (官方下载站 + 多镜像)
+      - name: Download SDK
         id: sdk
         run: |
-          # 官方下载站 (最稳)
           wget -q --show-progress --timeout=120 --tries=3 \
             "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" \
             -O sdk.tar.xz || \
