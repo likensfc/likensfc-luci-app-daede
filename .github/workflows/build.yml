@@ -12,18 +12,21 @@ jobs:
       - uses: actions/checkout@v4
       
       - name: Setup OpenWrt SDK
-        uses: immortalwrt/actions-sdk@v1
-        with:
-          target: x86/64
-          version: 24.10
+        run: |
+          wget -q https://downloads.immortalwrt.org/releases/24.10.6/targets/x86/64/immortalwrt-sdk-24.10.6-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz
+          tar -xf immortalwrt-sdk-*.tar.xz
+          cd immortalwrt-sdk-*
+          echo "SDK_PATH=$(pwd)" >> $GITHUB_OUTPUT
+        id: sdk
           
       - name: Build IPK
         run: |
-          cp -r . package/luci-app-daede
+          cd ${{ steps.sdk.outputs.SDK_PATH }}
+          cp -r ${{ github.workspace }} package/luci-app-daede
           make package/luci-app-daede/compile V=s
           
       - name: Upload IPK
         uses: actions/upload-artifact@v4
         with:
           name: luci-app-daede-ipk
-          path: bin/packages/**/luci-app-daede*.ipk
+          path: immortalwrt-sdk-*/bin/packages/**/*.ipk
