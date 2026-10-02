@@ -8,40 +8,48 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      
-      - name: Download SDK & Build
+
+      - name: Install deps
         run: |
-          # 使用清华镜像下载 OpenWrt 24.10 SDK (兼容 ImmortalWrt 24.10)
-          SDK_URL="https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/24.10.0/targets/x86/64/openwrt-sdk-24.10.0-x86-64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
-          
-          echo "Downloading SDK from: $SDK_URL"
-          wget -q --timeout=60 --tries=3 "$SDK_URL" -O sdk.tar.xz || {
-            echo "清华镜像失败，尝试北大镜像..."
-            wget -q --timeout=60 --tries=3 "https://mirrors.pku.edu.cn/openwrt/releases/24.10.0/targets/x86/64/openwrt-sdk-24.10.0-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
-          } || {
-            echo "北大镜像失败，尝试官方源..."
-            wget -q --timeout=60 --tries=3 "https://downloads.openwrt.org/releases/24.10.0/targets/x86/64/openwrt-sdk-24.10.0-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
-          }
-          
-          # 验证文件
-          if [ ! -f sdk.tar.xz ] || [ ! -s sdk.tar.xz ]; then
-            echo "All downloads failed"
-            exit 1
-          fi
-          
-          tar -xf sdk.tar.xz
-          SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
-          cd "$SDK_DIR"
-          
-          # 复制源码
-          cp -r /home/runner/work/likensfc-luci-app-daede/likensfc-luci-app-daede package/luci-app-daede
-          
-          # 编译
+          sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
+
+      - name: Download SDK (try multiple versions)
+        id: sdk
+        run: |
+          # 尝试多个版本号格式
+          VERSIONS=("24.10" "24.10.0" "24.10.1" "24.10.2")
+          MIRRORS=(
+            "https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases"
+            "https://mirrors.pku.edu.cn/openwrt/releases"
+            "https://downloads.openwrt.org/releases"
+          )
+
+          for ver in "${VERSIONS[@]}"; do
+            for mirror in "${MIRRORS[@]}"; do
+              URL="${mirror}/${ver}/targets/x86/64/openwrt-sdk-${ver}-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+              echo "Trying: $URL"
+              if wget -q --timeout=60 --tries=2 "$URL" -O sdk.tar.xz && [ -s sdk.tar.xz ]; then
+                echo "Success: $URL"
+                tar -xf sdk.tar.xz
+                SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
+                echo "SDK_DIR=$SDK_DIR" >> $GITHUB_OUTPUT
+                exit 0
+              fi
+            done
+          done
+
+          echo "All versions/mirrors failed"
+          exit 1
+
+      - name: Build IPK
+        run: |
+          cd "${{ steps.sdk.outputs.SDK_DIR }}"
+          cp -r "${{ github.workspace }}" package/luci-app-daede
           make package/luci-app-daede/compile V=s
-        working-directory: /home/runner
-          
+
       - name: Upload IPK
         uses: actions/upload-artifact@v4
         with:
