@@ -16,18 +16,23 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
 
-      - name: Download ImmortalWrt SDK
+      - name: Download SDK from GitHub Release
         id: sdk
         run: |
-          # ImmortalWrt 24.10 基于 OpenWrt 23.05，用 23.05 SDK
-          SDK_URL="https://mirrors.tuna.tsinghua.edu.cn/openwrt/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          # 使用官方 OpenWrt 23.05.5 SDK GitHub Release (永久链接，不依赖镜像站)
+          SDK_URL="https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
           
           echo "Downloading: $SDK_URL"
-          wget -q --show-progress --timeout=120 --tries=3 "$SDK_URL" -O sdk.tar.xz || \
-          wget -q --timeout=120 --tries=3 "https://mirrors.pku.edu.cn/openwrt/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz || \
-          wget -q --timeout=120 --tries=3 "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
+          wget -q --show-progress --timeout=120 --tries=3 "$SDK_URL" -O sdk.tar.xz || {
+            # 备选：从官方下载站
+            wget -q --timeout=120 --tries=3 "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
+          } || {
+            # 备选：GitHub Release 备用链接
+            wget -q --timeout=120 --tries=3 "https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
+          }
 
           [ -s sdk.tar.xz ] || { echo "All downloads failed"; exit 1; }
+          
           tar -xf sdk.tar.xz
           SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
           echo "SDK_DIR=$SDK_DIR" >> $GITHUB_OUTPUT
