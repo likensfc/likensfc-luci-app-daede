@@ -1,4 +1,22 @@
-- name: Download SDK (With Size Validation)
+name: Build luci-app-daede IPK
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
+
+      - name: Download SDK (With Size Validation)
         id: sdk
         run: |
           URLS=(
@@ -11,7 +29,7 @@
             echo "Trying to download from: $url"
             rm -f sdk.tar.xz
             if curl -L --retry 5 --retry-delay 5 --connect-timeout 30 -o sdk.tar.xz "$url"; then
-              # 检查文件大小是否大于 50MB，过滤掉只有几字节的 404 错误页面
+              # 校验文件大小是否大于 50MB，自动过滤掉几字节的错误响应
               FILE_SIZE=$(stat -c%s sdk.tar.xz 2>/dev/null || stat -f%z sdk.tar.xz 2>/dev/null || echo 0)
               if [ "$FILE_SIZE" -gt 50000000 ]; then
                 echo "Download successful! File size: $FILE_SIZE bytes"
@@ -29,3 +47,15 @@
           tar -xf sdk.tar.xz
           SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
           echo "SDK_DIR=$SDK_DIR" >> $GITHUB_OUTPUT
+
+      - name: Build IPK
+        run: |
+          cd "${{ steps.sdk.outputs.SDK_DIR }}"
+          cp -r "${{ github.workspace }}" package/luci-app-daede
+          make package/luci-app-daede/compile V=s
+
+      - name: Upload IPK
+        uses: actions/upload-artifact@v4
+        with:
+          name: luci-app-daede-ipk
+          path: openwrt-sdk-*/bin/packages/**/luci-app-daede*.ipk
