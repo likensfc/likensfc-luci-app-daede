@@ -16,22 +16,28 @@ jobs:
         run: |
           sudo apt-get update -qq && sudo apt-get install -y -qq wget tar xz-utils build-essential gcc g++ gawk flex bison libncurses5-dev libssl-dev zlib1g-dev unzip python3
 
-      - name: Download SDK from GitHub Release
+      - name: Download SDK (With Retry & Mirror)
         id: sdk
         run: |
-          # 使用官方 OpenWrt 23.05.5 SDK GitHub Release (永久链接，不依赖镜像站)
-          SDK_URL="https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          URLS=(
+            "https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+            "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz"
+          )
           
-          echo "Downloading: $SDK_URL"
-          wget -q --show-progress --timeout=120 --tries=3 "$SDK_URL" -O sdk.tar.xz || {
-            # 备选：从官方下载站
-            wget -q --timeout=120 --tries=3 "https://downloads.openwrt.org/releases/23.05.5/targets/x86/64/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
-          } || {
-            # 备选：GitHub Release 备用链接
-            wget -q --timeout=120 --tries=3 "https://github.com/openwrt/openwrt/releases/download/v23.05.5/openwrt-sdk-23.05.5-x86_64_gcc-13.3.0_musl.Linux-x86_64.tar.xz" -O sdk.tar.xz
-          }
-
-          [ -s sdk.tar.xz ] || { echo "All downloads failed"; exit 1; }
+          SUCCESS=0
+          for url in "${URLS[@]}"; do
+            echo "Trying to download from: $url"
+            if curl -L --retry 5 --retry-delay 5 --connect-timeout 30 -o sdk.tar.xz "$url"; then
+              if [ -s sdk.tar.xz ]; then
+                echo "Download successful!"
+                SUCCESS=1
+                break
+              fi
+            fi
+            echo "Download failed, trying next..."
+          done
+          
+          [ $SUCCESS -eq 1 ] || { echo "All download sources failed!"; exit 1; }
           
           tar -xf sdk.tar.xz
           SDK_DIR=$(find . -maxdepth 1 -name "openwrt-sdk-*" -type d | head -1)
