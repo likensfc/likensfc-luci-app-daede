@@ -19,8 +19,7 @@ jobs:
       - name: Download ImmortalWrt SDK (Dynamic Auto-Fetch)
         id: sdk
         run: |
-          # 动态遍历官方稳定版目录与快照目录，自动提取并下载对应的 x86_64 SDK
-          VERSIONS=("24.10.0" "snapshots")
+          VERSIONS=("24.10.6" "24.10.0" "snapshots")
           SUCCESS=0
           
           for ver in "${VERSIONS[@]}"; do
